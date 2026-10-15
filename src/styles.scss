@@ -8,19 +8,44 @@ html {
         primary: mat.$azure-palette,
         tertiary: mat.$blue-palette,
       ),
-      typography: Roboto,
+      typography: (
+        plain-family: 'Inter, Roboto, sans-serif',
+        brand-family: 'Inter, Roboto, sans-serif',
+      ),
       density: 0,
     )
   );
+
+  // Couleurs des statuts d'une note, partagées par le badge, la frise et l'historique.
+  --ef-draft: #546e7a;
+  --ef-draft-bg: #eceff1;
+  --ef-submitted: #1565c0;
+  --ef-submitted-bg: #e3f2fd;
+  --ef-approved: #2e7d32;
+  --ef-approved-bg: #e8f5e9;
+  --ef-rejected: #c62828;
+  --ef-rejected-bg: #ffebee;
+  --ef-paid: #5e35b1;
+  --ef-paid-bg: #ede7f6;
+  --ef-radius: 16px;
+
+  // Champs de formulaire : hauteur unique de 44px, bordure discrète qui se renforce au survol.
+  --mat-form-field-container-height: 44px;
+  --mat-form-field-container-vertical-padding: 10px;
+  --mat-form-field-outlined-container-shape: 10px;
+  --mat-form-field-outlined-outline-color: var(--mat-sys-outline-variant);
+  --mat-form-field-outlined-hover-outline-color: var(--mat-sys-outline);
+  --mat-form-field-subscript-text-size: 12px;
 }
 
 body {
   color-scheme: light;
-  background-color: var(--mat-sys-surface-container-lowest);
+  background-color: var(--mat-sys-surface-container-low);
   color: var(--mat-sys-on-surface);
   font: var(--mat-sys-body-medium);
   margin: 0;
   height: 100%;
+  -webkit-font-smoothing: antialiased;
 }
 
 .page {
@@ -35,11 +60,39 @@ body {
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 
   h1 {
     font: var(--mat-sys-headline-small);
+    font-weight: 600;
+    letter-spacing: -0.01em;
     margin: 0;
+  }
+
+  .subtitle {
+    margin: 4px 0 0;
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+.surface {
+  background: var(--mat-sys-surface);
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--ef-radius);
+}
+
+.section {
+  padding: 20px;
+  margin-bottom: 16px;
+
+  h2 {
+    margin: 0 0 16px;
+    font: var(--mat-sys-title-medium);
+    font-weight: 600;
+  }
+
+  @media (max-width: 640px) {
+    padding: 16px;
   }
 }
 
@@ -53,8 +106,127 @@ body {
   color: var(--mat-sys-on-surface-variant);
 }
 
+.spacer {
+  flex: 1;
+}
+
 .empty {
   padding: 32px 16px;
   text-align: center;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 48px 16px;
+  text-align: center;
+  color: var(--mat-sys-on-surface-variant);
+
+  .icon {
+    display: grid;
+    place-items: center;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: var(--mat-sys-primary-container);
+    color: var(--mat-sys-on-primary-container);
+
+    mat-icon {
+      font-size: 32px;
+      width: 32px;
+      height: 32px;
+    }
+  }
+
+  h2 {
+    margin: 8px 0 0;
+    font: var(--mat-sys-title-medium);
+    color: var(--mat-sys-on-surface);
+  }
+
+  p {
+    margin: 0 0 8px;
+    max-width: 420px;
+  }
+}
+
+.avatar {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--mat-sys-primary-container);
+  color: var(--mat-sys-on-primary-container);
+  font: var(--mat-sys-label-large);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.category {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+// Champ de formulaire : libellé fixe au-dessus, champ Material sans libellé flottant.
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+
+  > label,
+  > .label {
+    font: var(--mat-sys-label-large);
+    font-weight: 500;
+    color: var(--mat-sys-on-surface);
+  }
+
+  .optional {
+    font-weight: 400;
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  mat-form-field {
+    width: 100%;
+  }
+}
+
+.form-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.mat-mdc-form-field-error-wrapper,
+.mat-mdc-form-field-hint-wrapper {
+  padding: 0 2px !important;
+}
+
+// Boutons placés dans un champ (afficher le mot de passe, calendrier, taux de TVA) : ramenés à la
+// hauteur du champ.
+.mat-mdc-form-field-icon-suffix .mat-mdc-icon-button,
+.mat-mdc-form-field-icon-prefix .mat-mdc-icon-button {
+  --mat-icon-button-state-layer-size: 36px;
+  width: 36px;
+  height: 36px;
+  padding: 6px;
+  margin: 0 4px;
+}
+
+.mat-mdc-form-field-icon-prefix > mat-icon,
+.mat-mdc-form-field-icon-suffix > mat-icon {
+  padding: 0 8px 0 12px !important;
   color: var(--mat-sys-on-surface-variant);
 }

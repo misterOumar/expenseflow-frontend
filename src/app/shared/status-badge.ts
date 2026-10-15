@@ -4,20 +4,30 @@ import { ReportStatus } from '../core/models';
 
 @Component({
   selector: 'app-status-badge',
-  template: `<span class="badge" [class]="'badge ' + status().toLowerCase()">{{ label() }}</span>`,
+  template: `<span [class]="'badge ' + status().toLowerCase()">{{ label() }}</span>`,
   styles: `
     .badge {
-      display: inline-block;
-      padding: 2px 10px;
-      border-radius: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 10px 3px 8px;
+      border-radius: 999px;
       font: var(--mat-sys-label-medium);
+      font-weight: 600;
       white-space: nowrap;
     }
-    .draft { background: #eceff1; color: #455a64; }
-    .submitted { background: #e3f2fd; color: #1565c0; }
-    .approved { background: #e8f5e9; color: #2e7d32; }
-    .rejected { background: #ffebee; color: #c62828; }
-    .paid { background: #ede7f6; color: #5e35b1; }
+    .badge::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+    .draft { background: var(--ef-draft-bg); color: var(--ef-draft); }
+    .submitted { background: var(--ef-submitted-bg); color: var(--ef-submitted); }
+    .approved { background: var(--ef-approved-bg); color: var(--ef-approved); }
+    .rejected { background: var(--ef-rejected-bg); color: var(--ef-rejected); }
+    .paid { background: var(--ef-paid-bg); color: var(--ef-paid); }
   `,
 })
 export class StatusBadge {

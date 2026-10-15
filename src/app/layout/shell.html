@@ -1,30 +1,56 @@
-<mat-toolbar class="toolbar">
-  <a class="brand" routerLink="/reports">
-    <mat-icon>receipt_long</mat-icon>
-    ExpenseFlow
-  </a>
-
-  <nav>
-    <a mat-button routerLink="/reports" routerLinkActive="active">
-      {{ auth.hasRole('ACCOUNTANT') ? 'Notes' : 'Mes notes' }}
+<header class="toolbar">
+  <div class="toolbar-inner">
+    <a class="brand" routerLink="/reports" aria-label="ExpenseFlow, accueil">
+      <span class="logo"><mat-icon>receipt_long</mat-icon></span>
+      <span class="name">ExpenseFlow</span>
     </a>
-    @if (auth.hasRole('MANAGER')) {
-      <a mat-button routerLink="/approvals" routerLinkActive="active">Validation</a>
+
+    <nav>
+      <a
+        mat-button
+        routerLink="/reports"
+        routerLinkActive="active"
+        [attr.aria-label]="auth.hasRole('ACCOUNTANT') ? 'Notes' : 'Mes notes'"
+      >
+        <mat-icon>description</mat-icon>
+        <span class="label">{{ auth.hasRole('ACCOUNTANT') ? 'Notes' : 'Mes notes' }}</span>
+      </a>
+      @if (auth.hasRole('MANAGER')) {
+        <a mat-button routerLink="/approvals" routerLinkActive="active" aria-label="Validation">
+          <mat-icon>fact_check</mat-icon>
+          <span class="label">Validation</span>
+        </a>
+      }
+    </nav>
+
+    <span class="spacer"></span>
+
+    @if (auth.user(); as user) {
+      <button class="account" [matMenuTriggerFor]="menu" aria-label="Menu du compte">
+        <span class="avatar">{{ userInitials() }}</span>
+        <span class="who">
+          <span class="email">{{ user.email }}</span>
+          <span class="role">{{ roleLabel() }}</span>
+        </span>
+        <mat-icon class="chevron">expand_more</mat-icon>
+      </button>
+
+      <mat-menu #menu="matMenu" xPosition="before">
+        <div class="menu-header">
+          <span class="avatar">{{ userInitials() }}</span>
+          <div>
+            <div class="email">{{ user.email }}</div>
+            <div class="role">{{ roleLabel() }}</div>
+          </div>
+        </div>
+        <button mat-menu-item (click)="auth.logout()">
+          <mat-icon>logout</mat-icon>
+          Se déconnecter
+        </button>
+      </mat-menu>
     }
-  </nav>
-
-  <span class="spacer"></span>
-
-  @if (auth.user(); as user) {
-    <span class="user">
-      <span>{{ user.email }}</span>
-      <span class="role">{{ roleLabel() }}</span>
-    </span>
-  }
-  <button mat-icon-button matTooltip="Se déconnecter" aria-label="Se déconnecter" (click)="auth.logout()">
-    <mat-icon>logout</mat-icon>
-  </button>
-</mat-toolbar>
+  </div>
+</header>
 
 <main>
   <router-outlet />
