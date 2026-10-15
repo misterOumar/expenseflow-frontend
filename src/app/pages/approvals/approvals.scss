@@ -1,0 +1,69 @@
+.summary {
+  margin: 4px 0 0;
+}
+
+mat-panel-title {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+
+  .owner {
+    font: var(--mat-sys-label-medium);
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+mat-panel-description {
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+
+  strong {
+    color: var(--mat-sys-on-surface);
+  }
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.lines-table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th,
+  td {
+    padding: 6px 8px;
+    text-align: left;
+    border-bottom: 1px solid var(--mat-sys-outline-variant);
+  }
+
+  th {
+    font: var(--mat-sys-label-large);
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  .amount {
+    text-align: right;
+  }
+}
+
+mat-action-row {
+  gap: 8px;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.danger {
+  color: var(--mat-sys-error);
+}
+
+.empty mat-icon {
+  font-size: 48px;
+  width: 48px;
+  height: 48px;
+  color: var(--mat-sys-primary);
+}

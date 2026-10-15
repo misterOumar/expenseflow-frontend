@@ -1,0 +1,28 @@
+.table-container {
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 12px;
+  overflow-x: auto;
+  background: var(--mat-sys-surface);
+}
+
+.clickable {
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--mat-sys-surface-container);
+    outline: none;
+  }
+}
+
+.mat-mdc-header-cell.amount,
+.mat-mdc-cell.amount {
+  text-align: right;
+}
+
+@media (max-width: 640px) {
+  .mat-mdc-header-cell,
+  .mat-mdc-cell {
+    padding: 0 8px;
+  }
+}

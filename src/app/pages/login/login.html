@@ -1,0 +1,54 @@
+<div class="login">
+  <mat-card appearance="outlined">
+    @if (loading()) {
+      <mat-progress-bar mode="indeterminate" />
+    }
+    <mat-card-header>
+      <mat-icon mat-card-avatar class="logo">receipt_long</mat-icon>
+      <mat-card-title>ExpenseFlow</mat-card-title>
+      <mat-card-subtitle>Connexion</mat-card-subtitle>
+    </mat-card-header>
+
+    <form [formGroup]="form" (ngSubmit)="submit()">
+      <mat-card-content>
+        <mat-form-field appearance="outline">
+          <mat-label>Email</mat-label>
+          <input matInput type="email" formControlName="email" autocomplete="username" />
+          @if (form.controls.email.hasError('email')) {
+            <mat-error>Adresse email invalide</mat-error>
+          } @else {
+            <mat-error>L'email est obligatoire</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Mot de passe</mat-label>
+          <input
+            matInput
+            [type]="hidePassword() ? 'password' : 'text'"
+            formControlName="password"
+            autocomplete="current-password"
+          />
+          <button
+            mat-icon-button
+            matSuffix
+            type="button"
+            [attr.aria-label]="hidePassword() ? 'Afficher le mot de passe' : 'Masquer le mot de passe'"
+            (click)="hidePassword.set(!hidePassword())"
+          >
+            <mat-icon>{{ hidePassword() ? 'visibility' : 'visibility_off' }}</mat-icon>
+          </button>
+          <mat-error>Le mot de passe est obligatoire</mat-error>
+        </mat-form-field>
+
+        @if (error(); as message) {
+          <p class="error" role="alert">{{ message }}</p>
+        }
+      </mat-card-content>
+
+      <mat-card-actions>
+        <button mat-flat-button type="submit" [disabled]="loading()">Se connecter</button>
+      </mat-card-actions>
+    </form>
+  </mat-card>
+</div>

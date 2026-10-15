@@ -1,0 +1,39 @@
+.login {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+mat-card {
+  width: 100%;
+  max-width: 400px;
+  overflow: hidden;
+}
+
+.logo {
+  display: grid;
+  place-items: center;
+  color: var(--mat-sys-primary);
+  font-size: 32px;
+}
+
+form mat-card-content {
+  display: flex;
+  flex-direction: column;
+  padding-top: 16px;
+}
+
+mat-card-actions {
+  padding: 0 16px 16px;
+
+  button {
+    width: 100%;
+  }
+}
+
+.error {
+  margin: 0 0 8px;
+  color: var(--mat-sys-error);
+}

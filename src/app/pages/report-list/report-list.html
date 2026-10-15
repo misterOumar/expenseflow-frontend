@@ -1,0 +1,60 @@
+<div class="page">
+  <header class="page-header">
+    <h1>{{ isAccountant() ? 'Notes approuvées et payées' : 'Mes notes de frais' }}</h1>
+    @if (!isAccountant()) {
+      <a mat-flat-button routerLink="/reports/new">
+        <mat-icon>add</mat-icon>
+        Nouvelle note
+      </a>
+    }
+  </header>
+
+  <div class="table-container">
+    @if (loading()) {
+      <mat-progress-bar mode="indeterminate" />
+    }
+
+    <table mat-table [dataSource]="rows()">
+      <ng-container matColumnDef="period">
+        <th mat-header-cell *matHeaderCellDef>Période</th>
+        <td mat-cell *matCellDef="let report">{{ periodLabel(report.periodMonth, report.periodYear) }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="owner">
+        <th mat-header-cell *matHeaderCellDef>Employé</th>
+        <td mat-cell *matCellDef="let report">{{ report.ownerName }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="title">
+        <th mat-header-cell *matHeaderCellDef>Titre</th>
+        <td mat-cell *matCellDef="let report">{{ report.title }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="status">
+        <th mat-header-cell *matHeaderCellDef>Statut</th>
+        <td mat-cell *matCellDef="let report"><app-status-badge [status]="report.status" /></td>
+      </ng-container>
+
+      <ng-container matColumnDef="total">
+        <th mat-header-cell *matHeaderCellDef class="amount">Total TTC</th>
+        <td mat-cell *matCellDef="let report" class="amount">{{ report.totalAmount | currency }}</td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="columns()"></tr>
+      <tr
+        mat-row
+        *matRowDef="let report; columns: columns()"
+        class="clickable"
+        tabindex="0"
+        (click)="open(report)"
+        (keydown.enter)="open(report)"
+      ></tr>
+    </table>
+
+    @if (!loading() && rows().length === 0) {
+      <p class="empty">
+        {{ isAccountant() ? 'Aucune note approuvée pour le moment.' : 'Aucune note de frais. Créez votre première note.' }}
+      </p>
+    }
+  </div>
+</div>

@@ -1,0 +1,107 @@
+<div class="page">
+  <header class="page-header">
+    <div>
+      <h1>Validation</h1>
+      @if (!loading()) {
+        <p class="muted summary">
+          @if (reports().length === 0) {
+            Aucune note en attente.
+          } @else {
+            {{ reports().length }} note{{ reports().length > 1 ? 's' : '' }} en attente,
+            {{ pendingTotal() | currency }} au total
+          }
+        </p>
+      }
+    </div>
+  </header>
+
+  @if (loading()) {
+    <mat-progress-bar mode="indeterminate" />
+  }
+
+  <mat-accordion>
+    @for (report of reports(); track report.id) {
+      <mat-expansion-panel (opened)="loadDetail(report.id)">
+        <mat-expansion-panel-header>
+          <mat-panel-title>
+            <span class="owner">{{ report.ownerName }}</span>
+            <span class="title">{{ report.title }}</span>
+          </mat-panel-title>
+          <mat-panel-description>
+            <span>{{ periodLabel(report.periodMonth, report.periodYear) }}</span>
+            <strong class="amount">{{ report.totalAmount | currency }}</strong>
+          </mat-panel-description>
+        </mat-expansion-panel-header>
+
+        @if (busyId() === report.id) {
+          <mat-progress-bar mode="indeterminate" />
+        }
+
+        @if (detail(report.id); as current) {
+          <p class="muted">Soumise le {{ current.submittedAt | date: 'dd/MM/yyyy à HH:mm' }}</p>
+          <div class="table-scroll">
+            <table class="lines-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Catégorie</th>
+                  <th>Description</th>
+                  <th class="amount">HT</th>
+                  <th class="amount">TVA</th>
+                  <th class="amount">TTC</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (line of current.lines; track line.id) {
+                  <tr>
+                    <td>{{ line.spentOn | date: 'dd/MM/yyyy' }}</td>
+                    <td>{{ categoryLabels[line.category] }}</td>
+                    <td>{{ line.description }}</td>
+                    <td class="amount">{{ line.amountHt | currency }}</td>
+                    <td class="amount">{{ line.vatAmount | currency }}</td>
+                    <td class="amount">{{ line.amountTtc | currency }}</td>
+                    <td>
+                      @if (line.receiptId; as receiptId) {
+                        <button
+                          mat-icon-button
+                          matTooltip="Télécharger le justificatif"
+                          aria-label="Télécharger le justificatif"
+                          (click)="downloadReceipt(receiptId)"
+                        >
+                          <mat-icon>attach_file</mat-icon>
+                        </button>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <mat-progress-bar mode="indeterminate" />
+        }
+
+        <mat-action-row>
+          <a mat-button [routerLink]="['/reports', report.id]">Ouvrir la note</a>
+          <span class="spacer"></span>
+          <button mat-stroked-button class="danger" [disabled]="busyId() !== null" (click)="reject(report)">
+            <mat-icon>close</mat-icon>
+            Rejeter
+          </button>
+          <button mat-flat-button [disabled]="busyId() !== null" (click)="approve(report)">
+            <mat-icon>check</mat-icon>
+            Approuver
+          </button>
+        </mat-action-row>
+      </mat-expansion-panel>
+    }
+  </mat-accordion>
+
+  @if (!loading() && reports().length === 0) {
+    <div class="empty">
+      <mat-icon>task_alt</mat-icon>
+      <p>Toutes les notes de votre équipe ont été traitées.</p>
+    </div>
+  }
+</div>

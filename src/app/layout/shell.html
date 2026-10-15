@@ -1,0 +1,31 @@
+<mat-toolbar class="toolbar">
+  <a class="brand" routerLink="/reports">
+    <mat-icon>receipt_long</mat-icon>
+    ExpenseFlow
+  </a>
+
+  <nav>
+    <a mat-button routerLink="/reports" routerLinkActive="active">
+      {{ auth.hasRole('ACCOUNTANT') ? 'Notes' : 'Mes notes' }}
+    </a>
+    @if (auth.hasRole('MANAGER')) {
+      <a mat-button routerLink="/approvals" routerLinkActive="active">Validation</a>
+    }
+  </nav>
+
+  <span class="spacer"></span>
+
+  @if (auth.user(); as user) {
+    <span class="user">
+      <span>{{ user.email }}</span>
+      <span class="role">{{ roleLabel() }}</span>
+    </span>
+  }
+  <button mat-icon-button matTooltip="Se déconnecter" aria-label="Se déconnecter" (click)="auth.logout()">
+    <mat-icon>logout</mat-icon>
+  </button>
+</mat-toolbar>
+
+<main>
+  <router-outlet />
+</main>
