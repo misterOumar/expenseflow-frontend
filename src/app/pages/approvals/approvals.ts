@@ -5,15 +5,15 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { AuthService } from '../../core/auth.service';
 import { saveDownload } from '../../core/files';
-import { CATEGORY_LABELS, periodLabel } from '../../core/labels';
+import { initials, periodLabel } from '../../core/labels';
 import { ReportDetail, ReportSummary } from '../../core/models';
 import { Notifier } from '../../core/notifier';
 import { ReportApi } from '../../core/report-api';
+import { LinesTable } from '../../shared/lines-table';
 import { RejectDialog, RejectDialogData } from '../../shared/reject-dialog';
 
 /**
@@ -30,7 +30,7 @@ import { RejectDialog, RejectDialogData } from '../../shared/reject-dialog';
     MatButtonModule,
     MatIconModule,
     MatProgressBarModule,
-    MatTooltipModule,
+    LinesTable,
   ],
   templateUrl: './approvals.html',
   styleUrl: './approvals.scss',
@@ -41,7 +41,7 @@ export class Approvals implements OnInit {
   private readonly notifier = inject(Notifier);
   private readonly dialog = inject(MatDialog);
 
-  protected readonly categoryLabels = CATEGORY_LABELS;
+  protected readonly initials = initials;
   protected readonly periodLabel = periodLabel;
 
   protected readonly loading = signal(true);
