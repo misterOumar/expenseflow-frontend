@@ -1,0 +1,52 @@
+# Le reverse proxy en amont (Coolify) termine le HTTPS ; à défaut, le schéma de la requête est utilisé.
+map $http_x_forwarded_proto $forwarded_proto {
+    default $http_x_forwarded_proto;
+    ''      $scheme;
+}
+
+server {
+    listen 80;
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Justificatifs : 5 Mo plus l'enveloppe multipart.
+    client_max_body_size 6m;
+
+    gzip on;
+    gzip_types text/css application/javascript application/json image/svg+xml;
+
+    add_header X-Content-Type-Options nosniff always;
+    add_header X-Frame-Options DENY always;
+    add_header Referrer-Policy strict-origin-when-cross-origin always;
+
+    # Adresse de l'API fournie par API_UPSTREAM au démarrage du conteneur. Résolution DNS à chaque
+    # requête : l'adresse du conteneur de l'API peut changer à son redémarrage.
+    resolver 127.0.0.11 valid=10s;
+    set $api ${API_UPSTREAM};
+
+    location ~ ^/(api/|swagger-ui|v3/api-docs) {
+        proxy_pass $api;
+        proxy_ssl_server_name on;
+        proxy_set_header Host $proxy_host;
+        proxy_set_header X-Forwarded-Proto $forwarded_proto;
+        proxy_set_header X-Forwarded-Host $http_host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    # Fichiers générés avec une empreinte dans leur nom : mis en cache durablement.
+    location ~* \.(?:js|css|woff2?)$ {
+        try_files $uri =404;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        add_header X-Content-Type-Options nosniff always;
+    }
+
+    # Application monopage : toute autre route est servie par index.html, jamais mis en cache.
+    location / {
+        try_files $uri $uri/ /index.html;
+        add_header Cache-Control "no-cache";
+        add_header X-Content-Type-Options nosniff always;
+        add_header X-Frame-Options DENY always;
+        add_header Referrer-Policy strict-origin-when-cross-origin always;
+    }
+}
