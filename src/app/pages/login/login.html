@@ -1,54 +1,110 @@
 <div class="login">
-  <mat-card appearance="outlined">
-    @if (loading()) {
-      <mat-progress-bar mode="indeterminate" />
-    }
-    <mat-card-header>
-      <mat-icon mat-card-avatar class="logo">receipt_long</mat-icon>
-      <mat-card-title>ExpenseFlow</mat-card-title>
-      <mat-card-subtitle>Connexion</mat-card-subtitle>
-    </mat-card-header>
+  <aside class="hero">
+    <div class="brand">
+      <span class="logo"><mat-icon>receipt_long</mat-icon></span>
+      ExpenseFlow
+    </div>
 
-    <form [formGroup]="form" (ngSubmit)="submit()">
-      <mat-card-content>
-        <mat-form-field appearance="outline">
-          <mat-label>Email</mat-label>
-          <input matInput type="email" formControlName="email" autocomplete="username" />
-          @if (form.controls.email.hasError('email')) {
-            <mat-error>Adresse email invalide</mat-error>
-          } @else {
-            <mat-error>L'email est obligatoire</mat-error>
-          }
-        </mat-form-field>
+    <div class="pitch">
+      <h2>Vos notes de frais, de la saisie au remboursement.</h2>
+      <ul>
+        <li>
+          <mat-icon>upload_file</mat-icon>
+          <span>Saisissez vos dépenses et joignez vos justificatifs</span>
+        </li>
+        <li>
+          <mat-icon>fact_check</mat-icon>
+          <span>Votre manager valide en quelques clics</span>
+        </li>
+        <li>
+          <mat-icon>payments</mat-icon>
+          <span>La comptabilité suit et marque les remboursements</span>
+        </li>
+      </ul>
+    </div>
+  </aside>
 
-        <mat-form-field appearance="outline">
-          <mat-label>Mot de passe</mat-label>
-          <input
-            matInput
-            [type]="hidePassword() ? 'password' : 'text'"
-            formControlName="password"
-            autocomplete="current-password"
-          />
-          <button
-            mat-icon-button
-            matSuffix
-            type="button"
-            [attr.aria-label]="hidePassword() ? 'Afficher le mot de passe' : 'Masquer le mot de passe'"
-            (click)="hidePassword.set(!hidePassword())"
-          >
-            <mat-icon>{{ hidePassword() ? 'visibility' : 'visibility_off' }}</mat-icon>
-          </button>
-          <mat-error>Le mot de passe est obligatoire</mat-error>
-        </mat-form-field>
+  <section class="panel">
+    <div class="form-wrapper">
+      <div class="mobile-brand">
+        <span class="logo"><mat-icon>receipt_long</mat-icon></span>
+        ExpenseFlow
+      </div>
+
+      <h1>Connexion</h1>
+      <p class="muted intro">Connectez-vous avec votre adresse professionnelle.</p>
+
+      <form [formGroup]="form" (ngSubmit)="submit()" class="form-grid" novalidate>
+        <div class="field">
+          <label for="login-email">Email</label>
+          <mat-form-field>
+            <input
+              matInput
+              id="login-email"
+              type="email"
+              formControlName="email"
+              autocomplete="username"
+              placeholder="prenom.nom@entreprise.fr"
+            />
+            @if (form.controls.email.hasError('email')) {
+              <mat-error>Adresse email invalide</mat-error>
+            } @else {
+              <mat-error>Indiquez votre email</mat-error>
+            }
+          </mat-form-field>
+        </div>
+
+        <div class="field">
+          <label for="login-password">Mot de passe</label>
+          <mat-form-field>
+            <input
+              matInput
+              id="login-password"
+              [type]="hidePassword() ? 'password' : 'text'"
+              formControlName="password"
+              autocomplete="current-password"
+            />
+            <button
+              mat-icon-button
+              matIconSuffix
+              type="button"
+              [attr.aria-label]="hidePassword() ? 'Afficher le mot de passe' : 'Masquer le mot de passe'"
+              (click)="hidePassword.set(!hidePassword())"
+            >
+              <mat-icon>{{ hidePassword() ? 'visibility' : 'visibility_off' }}</mat-icon>
+            </button>
+            <mat-error>Indiquez votre mot de passe</mat-error>
+          </mat-form-field>
+        </div>
 
         @if (error(); as message) {
-          <p class="error" role="alert">{{ message }}</p>
+          <div class="error" role="alert">
+            <mat-icon>error</mat-icon>
+            <span>{{ message }}</span>
+          </div>
         }
-      </mat-card-content>
 
-      <mat-card-actions>
-        <button mat-flat-button type="submit" [disabled]="loading()">Se connecter</button>
-      </mat-card-actions>
-    </form>
-  </mat-card>
+        <button mat-flat-button type="submit" class="submit" [disabled]="loading()">
+          @if (loading()) {
+            <mat-spinner diameter="20" />
+          } @else {
+            Se connecter
+          }
+        </button>
+      </form>
+
+      @if (demoAccounts) {
+        <div class="demo">
+          <p class="muted">Comptes de démonstration</p>
+          <div class="demo-accounts">
+            @for (account of demoAccounts; track account.email) {
+              <button mat-stroked-button type="button" (click)="fillDemo(account.email)">
+                {{ account.label }}
+              </button>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  </section>
 </div>
