@@ -9,10 +9,19 @@ Interface web d'ExpenseFlow, application de gestion des notes de frais. Elle s'a
 
 | Écran | Rôle | Contenu |
 |---|---|---|
-| Connexion | Tous | Formulaire email / mot de passe, jeton conservé dans le navigateur |
-| Mes notes | Employé, manager, comptable | Liste des notes avec leur statut et leur total. Le comptable y voit les notes approuvées et payées de tous les employés |
-| Note de frais | Tous | Brouillon (propriétaire) : saisie de l'en-tête et des lignes (`FormArray`), upload d'un justificatif par ligne, total recalculé en direct, enregistrement, soumission, suppression. Autres statuts : consultation, motif de rejet, réouverture, export PDF, historique. Le comptable y marque une note approuvée comme payée |
+| Connexion | Tous | Formulaire email / mot de passe, jeton conservé dans le navigateur. En développement, accès rapide aux comptes de démonstration |
+| Mes notes | Employé, manager, comptable | Synthèse par statut (nombre de notes et montant), filtre par statut au clic sur une tuile, recherche par titre ou employé, liste triée de la plus récente à la plus ancienne. Le comptable y voit les notes approuvées et payées de tous les employés |
+| Note de frais | Tous | Brouillon (propriétaire) : saisie de l'en-tête et des lignes, justificatifs, total recalculé en direct, enregistrement, soumission, suppression. Autres statuts : frise du circuit, motif de rejet, réouverture, export PDF, historique. Le comptable y marque une note approuvée comme payée |
 | Validation | Manager | Notes de l'équipe en attente, détail des lignes et justificatifs, approbation, rejet avec motif obligatoire |
+
+### Saisie d'une note
+
+- **Période** : choix parmi le mois suivant et les douze derniers mois.
+- **Date de dépense** : calendrier en français (semaine commençant le lundi) ou saisie au clavier (`15/10/2026`, `15.10.26`…). Une date future est refusée.
+- **Montants** : saisie avec une virgule ou un point, limitée à deux décimales. La TVA peut être calculée à partir du montant HT et d'un taux français (20 %, 10 %, 5,5 %, 2,1 %, 0 %).
+- **Justificatifs** : dépôt par clic ou par glisser-déposer, PDF, JPEG ou PNG de 5 Mo au plus. Une fois joint, le fichier peut être téléchargé ou remplacé.
+- **Soumission** : les lignes sans justificatif et les champs invalides sont signalés avant tout envoi à l'API.
+- **Modifications non enregistrées** : une confirmation est demandée avant de quitter la note, qu'il s'agisse de changer d'écran ou de fermer l'onglet.
 
 ## Démarrage local
 
@@ -25,7 +34,7 @@ npm start
 
 L'application est servie sur http://localhost:4200. Le serveur de développement relaie `/api` vers `localhost:8080` (`proxy.conf.json`) : front et API partagent la même origine, aucune configuration CORS n'est nécessaire.
 
-Comptes de démonstration (mot de passe `password`) : `alice@expenseflow.dev` (employée), `manager@expenseflow.dev` (manager), `compta@expenseflow.dev` (comptable).
+Comptes de démonstration (mot de passe `password`) : `alice@expenseflow.dev` (employée), `manager@expenseflow.dev` (manager), `compta@expenseflow.dev` (comptable). En développement, l'écran de connexion les propose en un clic ; ce raccourci n'existe pas dans le build de production.
 
 ```bash
 npx ng build   # build de production dans dist/frontend/browser
@@ -38,14 +47,17 @@ npx ng build   # build de production dans dist/frontend/browser
 - **Synchronisation d'une note** : l'API expose la note et ses lignes séparément. À l'enregistrement, le formulaire est comparé à la dernière version chargée et seules les lignes ajoutées, modifiées ou supprimées sont envoyées. En cas d'échec en cours de route, la note est rechargée depuis l'API.
 - **Fichiers protégés** : justificatifs et PDF exigent le jeton JWT. Ils sont récupérés par `HttpClient` puis proposés au téléchargement, un simple lien ne pouvant pas porter l'en-tête `Authorization`.
 - **Erreurs** : le champ `detail` des réponses `ProblemDetail` de l'API est affiché tel quel à l'utilisateur.
+- **Dates sans fuseau horaire** : l'API échange des dates au format `AAAA-MM-JJ`. Elles sont converties en dates locales et inversement, sans passer par `toISOString`, qui décalerait le jour selon le fuseau.
+- **Montants** : un champ `type="number"` interprète la virgule différemment selon le navigateur (« 12,5 » peut devenir 125). Les montants passent par un champ texte dédié (`appDecimal`) qui transmet un nombre au formulaire.
 
 ## Organisation du code
 
 ```
 src/app
-├── core/     Authentification, intercepteur, gardes, client de l'API, modèles
+├── core/     Authentification, intercepteur, gardes, client de l'API, modèles, dates, libellés
 ├── layout/   Barre de navigation
-├── shared/   Badge de statut, boîtes de dialogue
+├── shared/   Badge et frise de statut, historique, tableau des lignes, champ de justificatif,
+│             saisie des montants, boîtes de dialogue
 └── pages/    login, report-list, report-edit, approvals
 ```
 
