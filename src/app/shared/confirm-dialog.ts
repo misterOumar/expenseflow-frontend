@@ -6,6 +6,9 @@ export interface ConfirmDialogData {
   title: string;
   message: string;
   confirmLabel: string;
+  cancelLabel?: string;
+  /** Action destructive : le bouton de confirmation passe en rouge. */
+  danger?: boolean;
 }
 
 @Component({
@@ -15,9 +18,17 @@ export interface ConfirmDialogData {
     <h2 mat-dialog-title>{{ data.title }}</h2>
     <mat-dialog-content>{{ data.message }}</mat-dialog-content>
     <mat-dialog-actions align="end">
-      <button mat-button [mat-dialog-close]="false">Annuler</button>
-      <button mat-flat-button [mat-dialog-close]="true">{{ data.confirmLabel }}</button>
+      <button mat-button [mat-dialog-close]="false">{{ data.cancelLabel ?? 'Annuler' }}</button>
+      <button mat-flat-button [class.danger]="data.danger" [mat-dialog-close]="true" cdkFocusInitial>
+        {{ data.confirmLabel }}
+      </button>
     </mat-dialog-actions>
+  `,
+  styles: `
+    .danger {
+      --mat-button-filled-container-color: var(--mat-sys-error);
+      --mat-button-filled-label-text-color: var(--mat-sys-on-error);
+    }
   `,
 })
 export class ConfirmDialog {

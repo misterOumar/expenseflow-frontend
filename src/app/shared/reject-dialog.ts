@@ -20,14 +20,24 @@ export interface RejectDialogData {
     <h2 mat-dialog-title>Rejeter la note</h2>
     <mat-dialog-content>
       <p>« {{ data.title }} » de {{ data.ownerName }}</p>
-      <mat-form-field appearance="outline" class="reason">
-        <mat-label>Motif du rejet</mat-label>
-        <textarea matInput [formControl]="reason" rows="4" cdkFocusInitial></textarea>
-        <mat-hint align="end">{{ reason.value.length }} / 1000</mat-hint>
-        @if (reason.hasError('minlength') || reason.hasError('required')) {
-          <mat-error>Le motif doit faire au moins 10 caractères</mat-error>
-        }
-      </mat-form-field>
+      <div class="field">
+        <label for="reject-reason">Motif du rejet</label>
+        <mat-form-field subscriptSizing="fixed">
+          <textarea
+            matInput
+            id="reject-reason"
+            [formControl]="reason"
+            rows="4"
+            maxlength="1000"
+            placeholder="Ex. Le justificatif de la ligne 2 est illisible."
+            cdkFocusInitial
+          ></textarea>
+          <mat-hint align="end">{{ reason.value.length }} / 1000</mat-hint>
+          @if (reason.hasError('minlength') || reason.hasError('required')) {
+            <mat-error>Le motif doit faire au moins 10 caractères</mat-error>
+          }
+        </mat-form-field>
+      </div>
     </mat-dialog-content>
     <mat-dialog-actions align="end">
       <button mat-button mat-dialog-close>Annuler</button>
@@ -35,8 +45,11 @@ export interface RejectDialogData {
     </mat-dialog-actions>
   `,
   styles: `
-    .reason { width: 100%; }
-    .danger { --mat-button-filled-container-color: var(--mat-sys-error); }
+    p { margin-top: 0; }
+    .danger {
+      --mat-button-filled-container-color: var(--mat-sys-error);
+      --mat-button-filled-label-text-color: var(--mat-sys-on-error);
+    }
   `,
 })
 export class RejectDialog {
