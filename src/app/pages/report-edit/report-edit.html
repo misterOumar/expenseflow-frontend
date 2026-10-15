@@ -5,10 +5,22 @@
   </a>
 
   <header class="page-header">
-    <div class="heading">
-      <h1>{{ isNew() ? 'Nouvelle note de frais' : report()?.title }}</h1>
+    <div>
+      <div class="heading">
+        <h1>{{ isNew() ? 'Nouvelle note de frais' : report()?.title }}</h1>
+        @if (report(); as current) {
+          <app-status-badge [status]="current.status" />
+        }
+      </div>
       @if (report(); as current) {
-        <app-status-badge [status]="current.status" />
+        <p class="subtitle">
+          {{ periodLabel(current.periodMonth, current.periodYear) }}
+          @if (!isOwner()) {
+            · {{ current.ownerName }}
+          }
+        </p>
+      } @else if (isNew()) {
+        <p class="subtitle">Renseignez la période puis ajoutez vos dépenses avec leurs justificatifs.</p>
       }
     </div>
   </header>
@@ -18,14 +30,18 @@
   }
 
   @if (report(); as current) {
+    <div class="steps-card surface">
+      <app-status-steps [status]="current.status" />
+    </div>
+
     @if (current.status === 'REJECTED' && current.rejectionReason) {
-      <div class="banner rejected" role="status">
+      <div class="banner" role="status">
         <mat-icon>report</mat-icon>
         <div>
           <strong>Rejetée par {{ current.decidedByName }}</strong>
-          <p>{{ current.rejectionReason }}</p>
+          <p>« {{ current.rejectionReason }} »</p>
           @if (canReopen()) {
-            <p class="muted">Rouvrez la note pour la corriger puis la soumettre à nouveau.</p>
+            <p>Rouvrez la note pour la corriger puis la soumettre à nouveau.</p>
           }
         </div>
       </div>
@@ -33,154 +49,251 @@
   }
 
   @if (editable()) {
-    <form [formGroup]="form" (ngSubmit)="save()">
-      <mat-card appearance="outlined">
-        <mat-card-header>
-          <mat-card-title>Informations</mat-card-title>
-        </mat-card-header>
-        <mat-card-content class="header-fields">
-          <mat-form-field appearance="outline" class="title-field">
-            <mat-label>Titre</mat-label>
-            <input matInput formControlName="title" placeholder="Déplacement client à Lyon" />
-            <mat-error>Le titre est obligatoire</mat-error>
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>Mois</mat-label>
-            <mat-select formControlName="periodMonth">
-              @for (month of months; track $index) {
-                <mat-option [value]="$index + 1">{{ month }}</mat-option>
-              }
-            </mat-select>
-          </mat-form-field>
-          <mat-form-field appearance="outline">
-            <mat-label>Année</mat-label>
-            <input matInput type="number" formControlName="periodYear" />
-            <mat-error>Année invalide</mat-error>
-          </mat-form-field>
-        </mat-card-content>
-      </mat-card>
-
-      <mat-card appearance="outlined">
-        <mat-card-header>
-          <mat-card-title>Dépenses</mat-card-title>
-          <mat-card-subtitle>Un justificatif (PDF, JPEG ou PNG, 5 Mo max.) par ligne</mat-card-subtitle>
-        </mat-card-header>
-
-        <mat-card-content formArrayName="lines">
-          @for (line of lines.controls; track $index; let i = $index) {
-            <div class="line" [formGroupName]="i">
-              <mat-form-field appearance="outline">
-                <mat-label>Date</mat-label>
-                <input matInput type="date" formControlName="spentOn" />
-              </mat-form-field>
-
-              <mat-form-field appearance="outline">
-                <mat-label>Catégorie</mat-label>
-                <mat-select formControlName="category">
-                  @for (category of categories; track category) {
-                    <mat-option [value]="category">{{ categoryLabels[category] }}</mat-option>
-                  }
-                </mat-select>
-              </mat-form-field>
-
-              <mat-form-field appearance="outline" class="description">
-                <mat-label>Description</mat-label>
-                <input matInput formControlName="description" />
-                <mat-error>Obligatoire</mat-error>
-              </mat-form-field>
-
-              <mat-form-field appearance="outline" class="money">
-                <mat-label>HT</mat-label>
-                <input matInput type="number" min="0" step="0.01" formControlName="amountHt" />
-                <span matTextSuffix>€</span>
-              </mat-form-field>
-
-              <mat-form-field appearance="outline" class="money">
-                <mat-label>TVA</mat-label>
-                <input matInput type="number" min="0" step="0.01" formControlName="vatAmount" />
-                <span matTextSuffix>€</span>
-              </mat-form-field>
-
-              <div class="ttc">
-                <span class="muted">TTC</span>
-                <strong class="amount">{{ lineTtc(i) | currency }}</strong>
-              </div>
-
-              <div class="receipt">
-                <input
-                  #fileInput
-                  type="file"
-                  hidden
-                  accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-                  (change)="upload(i, $event)"
-                />
-                @if (line.controls.receiptId.value; as receiptId) {
-                  <button
-                    mat-stroked-button
-                    type="button"
-                    class="receipt-name"
-                    [matTooltip]="'Télécharger ' + line.controls.receiptName.value"
-                    (click)="downloadReceipt(receiptId)"
-                  >
-                    <mat-icon>attach_file</mat-icon>
-                    <span>{{ line.controls.receiptName.value }}</span>
-                  </button>
-                  <button
-                    mat-icon-button
-                    type="button"
-                    matTooltip="Remplacer le justificatif"
-                    aria-label="Remplacer le justificatif"
-                    (click)="fileInput.click()"
-                  >
-                    <mat-icon>sync</mat-icon>
-                  </button>
-                } @else {
-                  <button
-                    mat-stroked-button
-                    type="button"
-                    [disabled]="uploadingLine() === i"
-                    (click)="fileInput.click()"
-                  >
-                    <mat-icon>upload_file</mat-icon>
-                    {{ uploadingLine() === i ? 'Envoi…' : 'Justificatif' }}
-                  </button>
-                }
-              </div>
-
-              <button
-                mat-icon-button
-                type="button"
-                class="remove"
-                matTooltip="Supprimer la ligne"
-                aria-label="Supprimer la ligne"
-                (click)="removeLine(i)"
-              >
-                <mat-icon>delete</mat-icon>
-              </button>
-            </div>
-          } @empty {
-            <p class="empty">Aucune dépense. Ajoutez une première ligne.</p>
-          }
-
-          <div class="lines-footer">
-            <button mat-button type="button" (click)="addLine()">
-              <mat-icon>add</mat-icon>
-              Ajouter une ligne
-            </button>
-            <div class="total">
-              Total TTC <strong class="amount">{{ formTotal() | currency }}</strong>
-            </div>
+    <form [formGroup]="form" (ngSubmit)="save()" novalidate>
+      <section class="section surface">
+        <h2>Informations</h2>
+        <div class="form-grid header-fields">
+          <div class="field">
+            <label for="report-title">Titre</label>
+            <mat-form-field>
+              <input
+                matInput
+                id="report-title"
+                formControlName="title"
+                placeholder="Ex. Déplacement client à Lyon"
+                maxlength="255"
+              />
+              <mat-error>Donnez un titre à la note</mat-error>
+            </mat-form-field>
           </div>
-        </mat-card-content>
-      </mat-card>
+          <div class="field">
+            <span class="label" id="report-period">Période</span>
+            <mat-form-field>
+              <mat-select
+                aria-labelledby="report-period"
+                [value]="selectedPeriod()"
+                (selectionChange)="setPeriod($event.value)"
+              >
+                @for (option of periodOptions(); track option.key) {
+                  <mat-option [value]="option.key">{{ option.label }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+          </div>
+        </div>
+      </section>
 
-      <div class="actions">
+      <section class="section surface">
+        <div class="section-head">
+          <div>
+            <h2>Dépenses</h2>
+            <p class="muted">Un justificatif par dépense : PDF, JPEG ou PNG, 5 Mo maximum.</p>
+          </div>
+          @if (lines.length > 0) {
+            <span class="muted count">{{ lines.length }} dépense{{ lines.length > 1 ? 's' : '' }}</span>
+          }
+        </div>
+
+        <div formArrayName="lines" class="lines">
+          @for (line of lines.controls; track line; let i = $index) {
+            <fieldset class="line" [formGroupName]="i">
+              <legend class="line-head">
+                <span class="line-number">{{ i + 1 }}</span>
+                <span class="line-title">
+                  {{ line.controls.description.value || 'Nouvelle dépense' }}
+                </span>
+              </legend>
+              <div class="line-actions">
+                <span class="line-ttc">
+                  <strong class="amount">{{ lineTtc(i) | currency }}</strong>
+                  <span class="muted">TTC</span>
+                </span>
+                <button
+                  mat-icon-button
+                  type="button"
+                  matTooltip="Supprimer la dépense"
+                  aria-label="Supprimer la dépense"
+                  (click)="removeLine(i)"
+                >
+                  <mat-icon>delete</mat-icon>
+                </button>
+              </div>
+
+              <div class="form-grid line-fields">
+                <div class="field f-date">
+                  <label [for]="'spent-on-' + i">Date</label>
+                  <mat-form-field>
+                    <input
+                      matInput
+                      [id]="'spent-on-' + i"
+                      [matDatepicker]="picker"
+                      [max]="today"
+                      formControlName="spentOn"
+                      placeholder="jj/mm/aaaa"
+                      autocomplete="off"
+                    />
+                    <mat-datepicker-toggle matIconSuffix [for]="picker" />
+                    <mat-datepicker #picker />
+                    @if (line.controls.spentOn.hasError('matDatepickerMax')) {
+                      <mat-error>La date ne peut pas être dans le futur</mat-error>
+                    } @else if (line.controls.spentOn.hasError('matDatepickerParse')) {
+                      <mat-error>Format attendu : jj/mm/aaaa</mat-error>
+                    } @else {
+                      <mat-error>Indiquez la date</mat-error>
+                    }
+                  </mat-form-field>
+                </div>
+
+                <div class="field f-category">
+                  <span class="label" [id]="'category-' + i">Catégorie</span>
+                  <mat-form-field>
+                    <mat-select formControlName="category" [attr.aria-labelledby]="'category-' + i">
+                      <mat-select-trigger>
+                        <span class="category">
+                          <mat-icon>{{ categoryIcons[line.controls.category.value] }}</mat-icon>
+                          {{ categoryLabels[line.controls.category.value] }}
+                        </span>
+                      </mat-select-trigger>
+                      @for (category of categories; track category) {
+                        <mat-option [value]="category">
+                          <mat-icon>{{ categoryIcons[category] }}</mat-icon>
+                          {{ categoryLabels[category] }}
+                        </mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                </div>
+
+                <div class="field f-description">
+                  <label [for]="'description-' + i">Description</label>
+                  <mat-form-field>
+                    <input
+                      matInput
+                      [id]="'description-' + i"
+                      formControlName="description"
+                      placeholder="Ex. Déjeuner avec un client"
+                      maxlength="500"
+                    />
+                    <mat-error>Décrivez la dépense</mat-error>
+                  </mat-form-field>
+                </div>
+
+                <div class="field f-ht">
+                  <label [for]="'amount-ht-' + i">Montant HT</label>
+                  <mat-form-field>
+                    <input
+                      matInput
+                      appDecimal
+                      [id]="'amount-ht-' + i"
+                      formControlName="amountHt"
+                      placeholder="0,00"
+                    />
+                    <span matTextSuffix>€</span>
+                    <mat-error>Indiquez le montant</mat-error>
+                  </mat-form-field>
+                </div>
+
+                <div class="field f-vat">
+                  <label [for]="'vat-' + i">TVA</label>
+                  <mat-form-field>
+                    <input
+                      matInput
+                      appDecimal
+                      [id]="'vat-' + i"
+                      formControlName="vatAmount"
+                      placeholder="0,00"
+                    />
+                    <span matTextSuffix>€</span>
+                    <button
+                      mat-icon-button
+                      matIconSuffix
+                      type="button"
+                      matTooltip="Calculer depuis un taux"
+                      aria-label="Calculer la TVA depuis un taux"
+                      [matMenuTriggerFor]="vatMenu"
+                      [matMenuTriggerData]="{ index: i }"
+                    >
+                      <mat-icon>percent</mat-icon>
+                    </button>
+                    <mat-error>Indiquez la TVA (0 si aucune)</mat-error>
+                  </mat-form-field>
+                </div>
+
+                <div class="field f-receipt">
+                  <span class="label">Justificatif</span>
+                  <app-receipt-field
+                    [receiptId]="line.controls.receiptId.value"
+                    [fileName]="line.controls.receiptName.value"
+                    [uploading]="uploadingLine() === i"
+                    [missing]="submitAttempted() && !line.controls.receiptId.value"
+                    (fileSelected)="uploadFile(i, $event)"
+                    (download)="downloadReceipt($event)"
+                  />
+                </div>
+              </div>
+            </fieldset>
+          } @empty {
+            <div class="empty-state">
+              <span class="icon"><mat-icon>post_add</mat-icon></span>
+              <p>Aucune dépense. Ajoutez une première ligne.</p>
+            </div>
+          }
+        </div>
+
+        <mat-menu #vatMenu="matMenu">
+          <ng-template matMenuContent let-index="index">
+            @for (rate of vatRates; track rate) {
+              <button mat-menu-item type="button" (click)="applyVatRate(index, rate)">
+                {{ vatRateLabel(rate) }}
+              </button>
+            }
+          </ng-template>
+        </mat-menu>
+
+        <button mat-stroked-button type="button" class="add-line" (click)="addLine()">
+          <mat-icon>add</mat-icon>
+          Ajouter une dépense
+        </button>
+      </section>
+
+      <div class="action-bar surface">
         @if (!isNew()) {
-          <button mat-button type="button" class="danger" [disabled]="busy()" (click)="delete()">
+          <button
+            mat-icon-button
+            type="button"
+            class="danger"
+            matTooltip="Supprimer le brouillon"
+            aria-label="Supprimer le brouillon"
+            [disabled]="busy()"
+            (click)="delete()"
+          >
             <mat-icon>delete</mat-icon>
-            Supprimer
           </button>
         }
+        <div class="summary" aria-live="polite">
+          <span class="total">{{ formTotal() | currency }}</span>
+          <span class="state">
+            @if (invalidFields() > 0) {
+              <span class="error">
+                {{ invalidFields() }} champ{{ invalidFields() > 1 ? 's' : '' }} à corriger
+              </span>
+            } @else if (submitAttempted() && missingReceipts() > 0) {
+              <span class="error">
+                {{ missingReceipts() }} justificatif{{ missingReceipts() > 1 ? 's' : '' }}
+                manquant{{ missingReceipts() > 1 ? 's' : '' }}
+              </span>
+            } @else if (dirty()) {
+              <span class="unsaved">Modifications non enregistrées</span>
+            } @else if (missingReceipts() > 0) {
+              <span class="muted">
+                {{ missingReceipts() }} justificatif{{ missingReceipts() > 1 ? 's' : '' }}
+                manquant{{ missingReceipts() > 1 ? 's' : '' }}
+              </span>
+            } @else {
+              <span class="muted">Total TTC</span>
+            }
+          </span>
+        </div>
         <span class="spacer"></span>
         <button mat-stroked-button type="submit" [disabled]="busy()">Enregistrer</button>
         <button mat-flat-button type="button" [disabled]="busy()" (click)="submit()">
@@ -190,143 +303,87 @@
       </div>
     </form>
   } @else if (report(); as current) {
-    <mat-card appearance="outlined">
-      <mat-card-content>
-        <dl class="details">
+    <section class="section surface overview">
+      <dl class="details">
+        <div>
+          <dt>Employé</dt>
+          <dd>{{ current.ownerName }}</dd>
+        </div>
+        <div>
+          <dt>Période</dt>
+          <dd>{{ periodLabel(current.periodMonth, current.periodYear) }}</dd>
+        </div>
+        @if (current.submittedAt) {
           <div>
-            <dt>Employé</dt>
-            <dd>{{ current.ownerName }}</dd>
+            <dt>Soumise le</dt>
+            <dd>{{ current.submittedAt | date: 'dd/MM/yyyy à HH:mm' }}</dd>
           </div>
+        }
+        @if (current.decidedByName) {
           <div>
-            <dt>Période</dt>
-            <dd>{{ periodLabel(current.periodMonth, current.periodYear) }}</dd>
+            <dt>Décision</dt>
+            <dd>{{ current.decidedByName }}, le {{ current.decidedAt | date: 'dd/MM/yyyy' }}</dd>
           </div>
-          @if (current.submittedAt) {
-            <div>
-              <dt>Soumise le</dt>
-              <dd>{{ current.submittedAt | date: 'dd/MM/yyyy à HH:mm' }}</dd>
-            </div>
-          }
-          @if (current.decidedByName) {
-            <div>
-              <dt>Décision</dt>
-              <dd>{{ current.decidedByName }}, le {{ current.decidedAt | date: 'dd/MM/yyyy' }}</dd>
-            </div>
-          }
-        </dl>
-      </mat-card-content>
-    </mat-card>
+        }
+      </dl>
+      <div class="big-total">
+        <span class="muted">Total TTC</span>
+        <strong>{{ current.totalAmount | currency }}</strong>
+      </div>
+    </section>
 
-    <mat-card appearance="outlined">
-      <mat-card-header>
-        <mat-card-title>Dépenses</mat-card-title>
-      </mat-card-header>
-      <mat-card-content class="table-scroll">
-        <table class="lines-table">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Catégorie</th>
-              <th>Description</th>
-              <th class="amount">HT</th>
-              <th class="amount">TVA</th>
-              <th class="amount">TTC</th>
-              <th>Justificatif</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (line of current.lines; track line.id) {
-              <tr>
-                <td>{{ line.spentOn | date: 'dd/MM/yyyy' }}</td>
-                <td>{{ categoryLabels[line.category] }}</td>
-                <td>{{ line.description }}</td>
-                <td class="amount">{{ line.amountHt | currency }}</td>
-                <td class="amount">{{ line.vatAmount | currency }}</td>
-                <td class="amount">{{ line.amountTtc | currency }}</td>
-                <td>
-                  @if (line.receiptId; as receiptId) {
-                    <button
-                      mat-icon-button
-                      matTooltip="Télécharger le justificatif"
-                      aria-label="Télécharger le justificatif"
-                      (click)="downloadReceipt(receiptId)"
-                    >
-                      <mat-icon>attach_file</mat-icon>
-                    </button>
-                  } @else {
-                    <span class="muted">—</span>
-                  }
-                </td>
-              </tr>
-            }
-          </tbody>
-          <tfoot>
-            <tr>
-              <td colspan="5">Total TTC</td>
-              <td class="amount">
-                <strong>{{ current.totalAmount | currency }}</strong>
-              </td>
-              <td></td>
-            </tr>
-          </tfoot>
-        </table>
-      </mat-card-content>
-    </mat-card>
+    <section class="section surface">
+      <h2>Dépenses</h2>
+      <app-lines-table
+        [lines]="current.lines"
+        [total]="current.totalAmount"
+        (download)="downloadReceipt($event)"
+      />
+    </section>
 
-    <div class="actions">
-      <span class="spacer"></span>
-      @if (canExport()) {
-        <button mat-stroked-button (click)="exportPdf()">
-          <mat-icon>picture_as_pdf</mat-icon>
-          Exporter en PDF
-        </button>
-      }
-      @if (canPay()) {
-        <button mat-flat-button [disabled]="busy()" (click)="pay()">
-          <mat-icon>payments</mat-icon>
-          Marquer comme payée
-        </button>
-      }
-      @if (canReopen()) {
-        <button mat-flat-button [disabled]="busy()" (click)="transition('reopen', 'Note rouverte en brouillon')">
-          <mat-icon>edit</mat-icon>
-          Rouvrir pour correction
-        </button>
-      }
-      @if (canDecide()) {
-        <button mat-stroked-button class="danger" [disabled]="busy()" (click)="reject()">
-          <mat-icon>close</mat-icon>
-          Rejeter
-        </button>
-        <button mat-flat-button [disabled]="busy()" (click)="transition('approve', 'Note approuvée')">
-          <mat-icon>check</mat-icon>
-          Approuver
-        </button>
-      }
-    </div>
+    @if (canExport() || canPay() || canReopen() || canDecide()) {
+      <div class="actions">
+        <span class="spacer"></span>
+        @if (canExport()) {
+          <button mat-stroked-button (click)="exportPdf()">
+            <mat-icon>picture_as_pdf</mat-icon>
+            Exporter en PDF
+          </button>
+        }
+        @if (canPay()) {
+          <button mat-flat-button [disabled]="busy()" (click)="pay()">
+            <mat-icon>payments</mat-icon>
+            Marquer comme payée
+          </button>
+        }
+        @if (canReopen()) {
+          <button
+            mat-flat-button
+            [disabled]="busy()"
+            (click)="transition('reopen', 'Note rouverte en brouillon')"
+          >
+            <mat-icon>edit</mat-icon>
+            Rouvrir pour correction
+          </button>
+        }
+        @if (canDecide()) {
+          <button mat-stroked-button class="danger" [disabled]="busy()" (click)="reject()">
+            <mat-icon>close</mat-icon>
+            Rejeter
+          </button>
+          <button mat-flat-button [disabled]="busy()" (click)="transition('approve', 'Note approuvée')">
+            <mat-icon>check</mat-icon>
+            Approuver
+          </button>
+        }
+      </div>
+    }
   }
 
   @if (history().length > 0) {
-    <mat-card appearance="outlined">
-      <mat-card-header>
-        <mat-card-title>Historique</mat-card-title>
-      </mat-card-header>
-      <mat-card-content>
-        <ol class="history">
-          @for (entry of history(); track $index) {
-            <li>
-              <span class="muted">{{ entry.at | date: 'dd/MM/yyyy HH:mm' }}</span>
-              <span>
-                {{ statusLabels[entry.fromStatus] }} → <strong>{{ statusLabels[entry.toStatus] }}</strong>
-                par {{ entry.actorName }}
-              </span>
-              @if (entry.comment) {
-                <q>{{ entry.comment }}</q>
-              }
-            </li>
-          }
-        </ol>
-      </mat-card-content>
-    </mat-card>
+    <section class="section surface">
+      <h2>Historique</h2>
+      <app-status-history [entries]="history()" />
+    </section>
   }
 </div>

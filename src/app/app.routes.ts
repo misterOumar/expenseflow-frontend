@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { authGuard, guestGuard, roleGuard } from './core/guards';
+import { authGuard, guestGuard, roleGuard, unsavedChangesGuard } from './core/guards';
 import { Shell } from './layout/shell';
 import { Approvals } from './pages/approvals/approvals';
 import { Login } from './pages/login/login';
@@ -15,8 +15,18 @@ export const routes: Routes = [
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'reports' },
       { path: 'reports', component: ReportList, title: 'Notes de frais · ExpenseFlow' },
-      { path: 'reports/new', component: ReportEdit, title: 'Nouvelle note · ExpenseFlow' },
-      { path: 'reports/:id', component: ReportEdit, title: 'Note de frais · ExpenseFlow' },
+      {
+        path: 'reports/new',
+        component: ReportEdit,
+        canDeactivate: [unsavedChangesGuard],
+        title: 'Nouvelle note · ExpenseFlow',
+      },
+      {
+        path: 'reports/:id',
+        component: ReportEdit,
+        canDeactivate: [unsavedChangesGuard],
+        title: 'Note de frais · ExpenseFlow',
+      },
       {
         path: 'approvals',
         component: Approvals,

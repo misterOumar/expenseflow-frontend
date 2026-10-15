@@ -1,5 +1,5 @@
 import { CurrencyPipe, DatePipe } from '@angular/common';
-import { Component, computed, inject, input, OnInit, signal } from '@angular/core';
+import { Component, computed, ElementRef, inject, input, OnInit, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import {
   FormArray,
@@ -10,19 +10,29 @@ import {
   Validators,
 } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
+import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { AuthService } from '../../core/auth.service';
+import { fromIsoDate, startOfToday, toIsoDate } from '../../core/dates';
 import { saveDownload } from '../../core/files';
-import { CATEGORIES, CATEGORY_LABELS, MONTHS, periodLabel, STATUS_LABELS } from '../../core/labels';
+import { LeaveGuarded } from '../../core/guards';
+import {
+  CATEGORIES,
+  CATEGORY_ICONS,
+  CATEGORY_LABELS,
+  periodFromKey,
+  periodKey,
+  periodLabel,
+} from '../../core/labels';
 import {
   ExpenseCategory,
   LineRequest,
@@ -34,14 +44,23 @@ import {
 import { Notifier } from '../../core/notifier';
 import { ReportApi } from '../../core/report-api';
 import { ConfirmDialog, ConfirmDialogData } from '../../shared/confirm-dialog';
+import { DecimalInput } from '../../shared/decimal-input';
+import { LinesTable } from '../../shared/lines-table';
+import { ReceiptField } from '../../shared/receipt-field';
 import { RejectDialog, RejectDialogData } from '../../shared/reject-dialog';
 import { StatusBadge } from '../../shared/status-badge';
+import { StatusHistory } from '../../shared/status-history';
+import { StatusSteps } from '../../shared/status-steps';
 
 const MAX_RECEIPT_SIZE = 5 * 1024 * 1024;
+const RECEIPT_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
+
+/** Taux de TVA français, proposés pour calculer la TVA à partir du montant HT. */
+const VAT_RATES = [20, 10, 5.5, 2.1, 0];
 
 type LineForm = FormGroup<{
   id: FormControl<number | null>;
-  spentOn: FormControl<string>;
+  spentOn: FormControl<Date | null>;
   category: FormControl<ExpenseCategory>;
   description: FormControl<string>;
   amountHt: FormControl<number | null>;
@@ -64,19 +83,26 @@ type LineForm = FormGroup<{
     ReactiveFormsModule,
     RouterLink,
     MatButtonModule,
-    MatCardModule,
+    MatDatepickerModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
+    MatMenuModule,
     MatProgressBarModule,
     MatSelectModule,
     MatTooltipModule,
+    DecimalInput,
+    LinesTable,
+    ReceiptField,
     StatusBadge,
+    StatusHistory,
+    StatusSteps,
   ],
   templateUrl: './report-edit.html',
   styleUrl: './report-edit.scss',
+  host: { '(window:beforeunload)': 'onBeforeUnload($event)' },
 })
-export class ReportEdit implements OnInit {
+export class ReportEdit implements OnInit, LeaveGuarded {
   readonly id = input<string>();
 
   private readonly api = inject(ReportApi);
@@ -85,18 +111,24 @@ export class ReportEdit implements OnInit {
   private readonly router = inject(Router);
   private readonly dialog = inject(MatDialog);
   private readonly fb = inject(NonNullableFormBuilder);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
   protected readonly categories = CATEGORIES;
   protected readonly categoryLabels = CATEGORY_LABELS;
-  protected readonly statusLabels = STATUS_LABELS;
-  protected readonly months = MONTHS;
+  protected readonly categoryIcons = CATEGORY_ICONS;
   protected readonly periodLabel = periodLabel;
+  protected readonly vatRates = VAT_RATES;
+  protected readonly today = startOfToday();
 
   protected readonly report = signal<ReportDetail | null>(null);
   protected readonly history = signal<StatusHistoryEntry[]>([]);
   protected readonly loading = signal(false);
   protected readonly busy = signal(false);
   protected readonly uploadingLine = signal<number | null>(null);
+  /** Passe à vrai après une tentative de soumission refusée, pour signaler les justificatifs manquants. */
+  protected readonly submitAttempted = signal(false);
+  /** Vrai quand la sortie de l'écran est voulue (suppression, redirection après création). */
+  private leaving = false;
 
   protected readonly form = this.fb.group({
     title: ['', [Validators.required, Validators.maxLength(255)]],
@@ -134,6 +166,42 @@ export class ReportEdit implements OnInit {
       0,
     ),
   );
+  protected readonly missingReceipts = computed(
+    () => (this.formValue().lines ?? []).filter((line) => !line.receiptId).length,
+  );
+  private readonly formEvents = toSignal(this.form.events);
+  protected readonly dirty = computed(() => {
+    this.formEvents();
+    return this.form.dirty;
+  });
+  /** Champs invalides que l'utilisateur a déjà quittés, ou tous après une tentative d'envoi. */
+  protected readonly invalidFields = computed(() => {
+    this.formEvents();
+    const controls = [
+      this.form.controls.title,
+      ...this.lines.controls.flatMap((line) => Object.values(line.controls)),
+    ];
+    return controls.filter((control) => control.invalid && control.touched).length;
+  });
+
+  protected readonly selectedPeriod = computed(() => {
+    const { periodMonth, periodYear } = this.formValue();
+    return periodKey(periodMonth ?? 1, periodYear ?? 2000);
+  });
+  /** Le mois suivant et les douze derniers mois, plus la période de la note si elle est plus ancienne. */
+  protected readonly periodOptions = computed(() => {
+    const current = periodKey(this.today.getMonth() + 1, this.today.getFullYear());
+    const keys = new Set([this.selectedPeriod()]);
+    for (let key = current + 1; key >= current - 12; key--) {
+      keys.add(key);
+    }
+    return [...keys]
+      .sort((a, b) => b - a)
+      .map((key) => {
+        const { month, year } = periodFromKey(key);
+        return { key, label: periodLabel(month, year) };
+      });
+  });
 
   get lines(): FormArray<LineForm> {
     return this.form.controls.lines;
@@ -145,6 +213,32 @@ export class ReportEdit implements OnInit {
       this.load(Number(id));
     } else {
       this.addLine();
+    }
+  }
+
+  async canLeave(): Promise<boolean> {
+    if (this.leaving || !this.editable() || !this.form.dirty) {
+      return true;
+    }
+    const confirmed = await firstValueFrom(
+      this.dialog
+        .open<ConfirmDialog, ConfirmDialogData, boolean>(ConfirmDialog, {
+          data: {
+            title: 'Quitter sans enregistrer ?',
+            message: 'Vos modifications sur cette note seront perdues.',
+            confirmLabel: 'Quitter',
+            cancelLabel: 'Rester sur la note',
+            danger: true,
+          },
+        })
+        .afterClosed(),
+    );
+    return confirmed === true;
+  }
+
+  protected onBeforeUnload(event: BeforeUnloadEvent): void {
+    if (!this.leaving && this.editable() && this.form.dirty) {
+      event.preventDefault();
     }
   }
 
@@ -162,11 +256,27 @@ export class ReportEdit implements OnInit {
     this.lines.markAsDirty();
   }
 
-  protected async upload(index: number, event: Event): Promise<void> {
-    const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
-    input.value = '';
-    if (!file) {
+  protected setPeriod(key: number): void {
+    const { month, year } = periodFromKey(key);
+    this.form.patchValue({ periodMonth: month, periodYear: year });
+    this.form.markAsDirty();
+  }
+
+  /** Calcule la TVA à partir du montant HT et du taux choisi. */
+  protected applyVatRate(index: number, rate: number): void {
+    const line = this.lines.at(index);
+    const amountHt = line.controls.amountHt.value ?? 0;
+    line.controls.vatAmount.setValue(Math.round(amountHt * rate) / 100);
+    line.controls.vatAmount.markAsDirty();
+  }
+
+  protected vatRateLabel(rate: number): string {
+    return `${String(rate).replace('.', ',')} %`;
+  }
+
+  protected async uploadFile(index: number, file: File): Promise<void> {
+    if (!RECEIPT_TYPES.includes(file.type)) {
+      this.notifier.info('Le justificatif doit être un PDF, un JPEG ou un PNG.');
       return;
     }
     if (file.size > MAX_RECEIPT_SIZE) {
@@ -214,8 +324,14 @@ export class ReportEdit implements OnInit {
   protected async submit(): Promise<void> {
     await this.run(async () => {
       const lines = this.lines.getRawValue();
-      if (lines.length === 0 || lines.some((line) => line.receiptId === null)) {
-        this.notifier.info('Ajoutez au moins une ligne et un justificatif sur chaque ligne avant de soumettre.');
+      if (lines.length === 0) {
+        this.notifier.info('Ajoutez au moins une dépense avant de soumettre.');
+        return;
+      }
+      const missingReceipt = lines.some((line) => line.receiptId === null);
+      if (missingReceipt || this.form.invalid) {
+        this.submitAttempted.set(true);
+        this.revealErrors();
         return;
       }
       const report = await this.persist();
@@ -292,6 +408,7 @@ export class ReportEdit implements OnInit {
             title: 'Supprimer le brouillon',
             message: `La note « ${report.title} » et ses lignes seront définitivement supprimées.`,
             confirmLabel: 'Supprimer',
+            danger: true,
           },
         })
         .afterClosed(),
@@ -302,6 +419,7 @@ export class ReportEdit implements OnInit {
     await this.run(async () => {
       await firstValueFrom(this.api.delete(report.id));
       this.notifier.success('Brouillon supprimé');
+      this.leaving = true;
       await this.router.navigate(['/reports']);
     });
   }
@@ -312,8 +430,7 @@ export class ReportEdit implements OnInit {
    */
   private async persist(): Promise<ReportDetail | null> {
     if (this.form.invalid) {
-      this.form.markAllAsTouched();
-      this.notifier.info('Certains champs sont invalides.');
+      this.revealErrors();
       return null;
     }
     const { title, periodMonth, periodYear } = this.form.getRawValue();
@@ -357,6 +474,21 @@ export class ReportEdit implements OnInit {
       }
       throw error;
     }
+  }
+
+  /**
+   * Affiche toutes les erreurs et amène l'utilisateur sur le premier champ à corriger, ou à défaut
+   * sur le premier justificatif manquant.
+   */
+  private revealErrors(): void {
+    this.form.markAllAsTouched();
+    setTimeout(() => {
+      const target = this.host.nativeElement.querySelector<HTMLElement>(
+        'input.ng-invalid, mat-select.ng-invalid, .dropzone.missing',
+      );
+      target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      target?.focus({ preventScroll: true });
+    });
   }
 
   private load(id: number): void {
@@ -403,6 +535,7 @@ export class ReportEdit implements OnInit {
       this.busy.set(false);
       const report = this.report();
       if (this.isNew() && report) {
+        this.leaving = true;
         await this.router.navigate(['/reports', report.id], { replaceUrl: true });
       }
     }
@@ -411,7 +544,10 @@ export class ReportEdit implements OnInit {
   private lineGroup(line?: ReportLine): LineForm {
     return this.fb.group({
       id: this.fb.control<number | null>(line?.id ?? null),
-      spentOn: [line?.spentOn ?? today(), Validators.required],
+      spentOn: this.fb.control<Date | null>(
+        line ? fromIsoDate(line.spentOn) : startOfToday(),
+        Validators.required,
+      ),
       category: this.fb.control<ExpenseCategory>(line?.category ?? 'MEAL', Validators.required),
       description: [line?.description ?? '', [Validators.required, Validators.maxLength(500)]],
       amountHt: this.fb.control<number | null>(line?.amountHt ?? null, [Validators.required, Validators.min(0)]),
@@ -426,15 +562,9 @@ function ttc(amountHt: number | null, vatAmount: number | null): number {
   return Math.round(((amountHt ?? 0) + (vatAmount ?? 0)) * 100) / 100;
 }
 
-function today(): string {
-  const now = new Date();
-  const pad = (value: number) => String(value).padStart(2, '0');
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-}
-
 function toLineRequest(line: ReturnType<LineForm['getRawValue']>): LineRequest {
   return {
-    spentOn: line.spentOn,
+    spentOn: toIsoDate(line.spentOn ?? startOfToday()),
     category: line.category,
     description: line.description.trim(),
     amountHt: line.amountHt ?? 0,

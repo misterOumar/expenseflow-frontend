@@ -1,5 +1,5 @@
 import { inject } from '@angular/core';
-import { CanActivateFn, Router } from '@angular/router';
+import { CanActivateFn, CanDeactivateFn, Router } from '@angular/router';
 import { AuthService } from './auth.service';
 import { Role } from './models';
 
@@ -16,3 +16,10 @@ export const guestGuard: CanActivateFn = () => {
 export function roleGuard(role: Role): CanActivateFn {
   return () => inject(AuthService).hasRole(role) || inject(Router).createUrlTree(['/reports']);
 }
+
+/** Écran pouvant retenir l'utilisateur, typiquement en cas de modifications non enregistrées. */
+export interface LeaveGuarded {
+  canLeave(): boolean | Promise<boolean>;
+}
+
+export const unsavedChangesGuard: CanDeactivateFn<LeaveGuarded> = (component) => component.canLeave();
